@@ -18,6 +18,7 @@ function setup(){
   // let extBCbk=()=>{extractImages(filename,"b",()=>{
     setupControls()
     setupBase()
+    setupAsteroids()
     setupPlayer()
     setupUI()
     start()
@@ -55,10 +56,22 @@ function setupBase(){
   createPanel("P1",100,130)
   createPanel("P2",70,90,"complete")
     
-  createAsteroid("A1",100,220,150,[80,0])
-  
+}
 
-
+function setupAsteroids(){
+  let n=5
+  let sign=1
+  let interval=setInterval(()=>{
+    sign=Math.random()>.25?-sign:sign
+    let x=sign==1?40:400-40
+    let y=75+Math.random()*75
+    let v=80+Math.random()*30
+    let h=90+Math.random()*20
+    
+    createAsteroid("A"+n,x,y,h,[sign*v,0])
+    n--
+    if(n<0) clearInterval(interval)
+  },1000)
 }
 
 function start(){

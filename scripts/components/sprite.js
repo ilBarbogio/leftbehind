@@ -1,4 +1,5 @@
 export class SpriteElement extends HTMLElement{
+  static observedAttributes=["transform"]
 
   set tileDims(v){
     this._tileDims=[...v]
@@ -41,6 +42,8 @@ export class SpriteElement extends HTMLElement{
       parseFloat(this.img.style.top)
     ]
   }
+  set alpha(v){this.img.style.opacity=v}
+
   constructor(){
     super()
     this.cumulatedTime=0
@@ -50,27 +53,34 @@ export class SpriteElement extends HTMLElement{
     this.cursor=0
     this.animations=[]
     this._imgUrl=""
+    this.scale=1
+    this.angle=0
 
-    this.attachShadow({mode:"open"})
-    this.img=document.createElement("div")
-    this.img.style.position="absolute"
-    this.img.style.left=0
-    this.img.style.top=0
-    this.img.style.backgroundRepeat="no-repeat"
-    this.img.style.imageRendering="pixelated"
-    // this.img.style.border="1px solid blue"
-    this.shadowRoot.append(this.img)
+    this.shadow=this.attachShadow({mode:"open"})
+    this.shadow.innerHTML=`<div style="position:absolute;left:0;top:0;background-repeat:no-repeat;background-position: 0 0;image-rendering:pixelated">`
+    this.img=this.shadow.querySelector("div")
+  }
+
+  attributeChangedCallback(nm,o,n){
+    if(nm=="transform"){
+      let spl=n.split(",")
+      let f=this._currentAnimation?.flip?-1:1
+      this.img.style.transform=`scale(${f*spl[0]},${spl[0]}) rotate(${spl[1]}deg)`
+    }
   }
 
   update=(delta)=>{
     this.cumulatedTime+=delta
+    if(this.id=="sprite-R1") console.log(this.id)
     if(this.cumulatedTime>=this.timeStep){
       this.cumulatedTime-=this.timeStep
       this.cursor++
       if(this.cursor==this._currentAnimation.length){
         if(this._currentAnimation.stay) this.cursor=this._currentAnimation.length-1
         else if(this._currentAnimation.segue) this.currentAnimation=this._currentAnimation.segue
-        else this.cursor%=this._currentAnimation.length
+        else if(this._currentAnimation.destroy){
+          this.img.remove()
+        }else this.cursor%=this._currentAnimation.length
       }
       this.positionSprite()
     }
@@ -78,10 +88,11 @@ export class SpriteElement extends HTMLElement{
 
   positionSprite=()=>{
     if(this._currentAnimation && this._tileDims){
+      let att=this.getAttribute("transform")
+      let spl=att?att.split(","):[1,0]
+      let a=`rotate(${spl[1]}deg)`
       let x=-(this._currentAnimation.pos[0])
       let y=-(this._currentAnimation.pos[1]+this.cursor*this._tileDims[1])
-      if(this._currentAnimation.flip) this.img.style.transform="scale(-1,1)"
-      else this.img.style.transform="scale(1,1)"
       this.img.style.backgroundPosition=`${x}px ${y}px`
     }
   }

@@ -1,6 +1,8 @@
 import { ENTITIES, STATE, itkArr, dist } from "./systems/variables.js"
 import { getPixelAtCoords,showTerminal } from "./canvas.js"
 
+let abs=Math.abs
+let flr=Math.floor
 let rn=v=>Math.random()*v
 let rc=(c,s)=>c+(Math.random()-0.5)*s
 
@@ -187,16 +189,17 @@ export class Door extends Entity{
 
 
 export class Rock extends Entity{
-  constructor(id,x,y,a=0,rs=100){ 
+  constructor(id,x,y,a=0,rs=100,type=0){ 
     super(id,x,y)
 
     this.angle=a
     this.rotSpeed=rs
 
-    this.setupSprite(STATE.spritesheets.g,[32,16],[
-      {name:"still",pos:[0,0],length:1},
-    ],"still",10,[-16,-8])
-    this.spriteTransform=`1,${this.angle}`
+    // this.setupSprite(STATE.spritesheets.g,[16,16],[{name:"s1",pos:[0,0],length:1},],"s1",10,[-8,-16])
+    // this.setupSprite(STATE.spritesheets.g,[16,16],[{name:"s2",pos:[0,16],length:1},],"s2",10,[-8,-16])
+    // this.setupSprite(STATE.spritesheets.g,[24,16],[{name:"m1",pos:[16,0],length:1},],"m1",10,[-12,-16])
+    // this.setupSprite(STATE.spritesheets.g,[24,16],[{name:"m2",pos:[16,16],length:1},],"m2",10,[-12,-16])
+    // this.spriteTransform=`1,${this.angle}`
   }
 
   update(d){
@@ -209,7 +212,7 @@ export class Rock extends Entity{
 export class Particle extends Entity{
   constructor(x,y,n=6,s=1,r=0){
     super("",x,y)
-    this.setupSprite(STATE.spritesheets.r,[8,8],[{name:"defex",pos:[120,0],length:n,destroy:true},],"defex",10,[-4,-4])
+    this.setupSprite(STATE.spritesheets.g,[8,8],[{name:"defex",pos:[40,0],length:n,destroy:true},],"defex",10,[-4,-4])
     this.spriteTransform=`${s},${r}`
   }
 
@@ -220,7 +223,7 @@ export class Particle extends Entity{
 
 
 export class Asteroid extends Entity{
-  constructor(id,x,y,h=100,v=[0,0]){ 
+  constructor(id,x,y,h=100,v=[0,0],t=0){
     super("ast-"+id,x,y)
     
     this.v=v
@@ -232,16 +235,21 @@ export class Asteroid extends Entity{
     this.rotSpeed=100
 
     this.rck=new Rock("",0,-h)//a,rs
-
+    if(t==0)this.rck.setupSprite(STATE.spritesheets.g,[16,16],[{name:"s1",pos:[0,0],length:1},],"s1",10,[-8,-16])
+    else if(t==1)this.rck.setupSprite(STATE.spritesheets.g,[16,16],[{name:"s2",pos:[0,16],length:1},],"s2",10,[-8,-16])
+    else if(t==2)this.rck.setupSprite(STATE.spritesheets.g,[24,16],[{name:"m1",pos:[16,0],length:1},],"m1",10,[-12,-16])
+    else this.rck.setupSprite(STATE.spritesheets.g,[24,16],[{name:"m2",pos:[16,16],length:1},],"m2",10,[-12,-16])
+    this.spriteTransform=`1,${this.angle}`
     
-    this.setupSprite(STATE.spritesheets.g,[32,8],[{name:"def",pos:[0,16],length:1},],"def",1,[-16,-4])
+    if(t<=1)this.setupSprite(STATE.spritesheets.g,[16,8],[{name:"shs",pos:[0,32],length:1},],"shs",1,[-8,-4])
+    else this.setupSprite(STATE.spritesheets.g,[24,8],[{name:"shm",pos:[16,32],length:1},],"shm",1,[-12,-4])
     this.sprite.alpha=.75
     this.anchor.append(this.rck.anchor)
   }
 
   update(d){
     let [x,y]=this.position
-    if(dist([0,0],this.v)<10){
+    if(this.h<5 && abs(this.v[1])<1.5){
       this.rck.position=[0,0]
       this.v=[0,0]
       this.rck.rotSpeed=0
@@ -254,7 +262,7 @@ export class Asteroid extends Entity{
     this.h-=this.v[1]*d*.001
     if(this.h<0){
       this.h=0
-      this.v[1]*=-1
+      this.v[1]*=-.85
       this.v[0]*=.5
       this.rck.rotSpeed*=rc(this.v[0]<20?.25:1.75,.5)
       createBurst(...this.position,8,32,2,180)
@@ -264,7 +272,7 @@ export class Asteroid extends Entity{
 }
 
 export let createAsteroid=(id,x,y,v,h=100)=>{
-  new Asteroid(id,x,y,v,h)
+  new Asteroid(id,x,y,v,h,flr(rn(4)))
 
 }
 
