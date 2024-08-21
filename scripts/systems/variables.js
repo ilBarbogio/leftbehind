@@ -1,99 +1,118 @@
-export class SpriteElement extends HTMLElement{
-  static observedAttributes=["transform"]
+export let itkArr=[,"w","s","sw","e",,"se",,"n","nw",,,"ne"]
 
-  set tileDims(v){
-    this._tileDims=[...v]
-    if(this.img){
-      this.img.style.width=`${this._tileDims[0]}px`
-      this.img.style.height=`${this._tileDims[1]}px`
-    }
+export const STATE={
+  player:"",
+  inputs:[false,false,false,false,false],
+  input:0,
+  
+  clock:0,
+  gravity:5,
+
+  terminal:false,
+  player:undefined,
+  maxOxy:150,
+
+  backgroundSize:[400,200],
+  basePos:[200,100],
+  baseDims:[32,48],
+
+  matrix:undefined,
+
+  spritesheets:{
+    r:undefined,
+    g:undefined,
+    b:undefined
+  },
+}
+
+export const ENTITIES=[]
+
+
+export function handleInput(){
+  STATE.input=0
+  for(let [i,n] of [8,4,2,1].entries()) if(STATE.inputs[i]) STATE.input+=n
+}
+
+
+//utils
+export const dist=(A,B)=>Math.hypot(A[0]-B[0],A[1]-B[1])
+
+
+//images
+const exCls={
+  r:{
+    c250:[255,255,0],
+    c255:[48,255,120],
+  },
+  g:{
+
+  },
+  b:{
+    c250:[0,255,255],
+    c251:[255,30,0],
+    c254:[255,255,0],
+    c255:[53,255,255]
   }
-  get tileDims(){return [...this._tileDims]}
+}
 
-  set imgUrl(v){
-    if(v!="" && this.img) this.img.style.backgroundImage=`url("${v}")`
-    else this.img.style.background="none"
-  }
+export function extractImages(fn,ch,clbk){
+  let can=document.createElement("canvas")
+  let ctx=can.getContext("2d")
 
-  set fps(v){
-    this.timeStep=1000/v
-  }
-
-  set currentAnimation(name){
-    //{name,pos,length}
-    if(name!=this._currentAnimation?.name){
-      this._currentAnimation=this.animations.find(el=>el.name==name)
-      if(this._currentAnimation){
-        this.cursor=0
-        this.cumulatedTime=0
-        this.positionSprite()
+  let img=new Image()
+  img.addEventListener("load",(ev)=>{
+    can.width=img.width
+    can.height=img.height
+    ctx.drawImage(img,0,0)
+    
+    let dims=[img.width,img.height]
+    let imgData=ctx.getImageData(0,0,...dims)
+    let d=imgData.data
+    
+    for(let i=0;i<d.length;i+=4){
+      if(ch=="r"){
+        if(d[i]!=0){
+          if(exCls[ch][`c${d[i]}`]){
+            let col=exCls[ch][`c${d[i]}`]
+            d[i]=col[0]
+            d[i+1]=col[1]
+            d[i+2]=col[2]
+          }else{
+            d[i+1]=d[i]
+            d[i+2]=d[i]
+          }
+        }else d[i+3]=0
+      }else if(ch=="g"){
+        if(d[i+1]!=0){
+          if(exCls[ch][`c${d[i+1]}`]){
+            let col=exCls[ch][`c${d[i+1]}`]
+            d[i]=col[0]
+            d[i+1]=col[1]
+            d[i+2]=col[2]
+          }else{
+            d[i]=d[i+1]
+            d[i+2]=d[i+1]
+          }
+        }else d[i+3]=0
+      }else if(ch=="b"){
+        if(d[i+2]!=0){
+          if(exCls[ch][`c${d[i+2]}`]){
+            let col=exCls[ch][`c${d[i+2]}`]
+            d[i]=col[0]
+            d[i+1]=col[1]
+            d[i+2]=col[2]
+          }else{
+            d[i]=d[i+2]
+            d[i+1]=d[i+2]
+          }
+        }else d[i+3]=0
       }
     }
-  }
-  get currentAnimation(){ return this._currentAnimation?.name}
-
-  set pos(v){
-    this.img.style.left=`${v[0]}px`
-    this.img.style.top=`${v[1]}px`
-  }
-  get pos(){
-    return [
-      parseFloat(this.img.style.left),
-      parseFloat(this.img.style.top)
-    ]
-  }
-  set alpha(v){this.img.style.opacity=v}
-
-  constructor(){
-    super()
-    this.cumulatedTime=0
-    this.timeStep=50
-
-    // this.row=0
-    this.cursor=0
-    this.animations=[]
-    this._imgUrl=""
-    this.scale=1
-    this.angle=0
-
-    this.shadow=this.attachShadow({mode:"open"})
-    this.shadow.innerHTML=`<div style="position:absolute;left:0;top:0;background-repeat:no-repeat;background-position: 0 0;image-rendering:pixelated">`
-    this.img=this.shadow.querySelector("div")
-  }
-
-  attributeChangedCallback(nm,o,n){
-    if(nm=="transform"){
-      let spl=n.split(",")
-      let f=this._currentAnimation?.flip?-1:1
-      this.img.style.transform=`scale(${f*spl[0]},${spl[0]}) rotate(${spl[1]}deg)`
-    }
-  }
-
-  update=(delta)=>{
-    this.cumulatedTime+=delta
-    if(this.id=="sprite-R1") console.log(this.id)
-    if(this.cumulatedTime>=this.timeStep){
-      this.cumulatedTime-=this.timeStep
-      this.cursor++
-      if(this.cursor==this._currentAnimation.length){
-        if(this._currentAnimation.stay) this.cursor=this._currentAnimation.length-1
-        else if(this._currentAnimation.segue) this.currentAnimation=this._currentAnimation.segue
-        else if(this._currentAnimation.destroy){
-          this.img.remove()
-        }else this.cursor%=this._currentAnimation.length
-      }
-      this.positionSprite()
-    }
-  }
-
-  positionSprite=()=>{
-    if(this._currentAnimation && this._tileDims){
-      let att=this.getAttribute("transform")
-      let spl=att?att.split(","):[1,0]
-      let a=`rotate(${spl[1]}deg)`
-      let x=-(this._currentAnimation.pos[0])
-      let y=-(this._currentAnimation.pos[1]+this.cursor*this._tileDims[1])
-      this.img.style.backgroundPosition=`${x}px ${y}px`
-    }
-  }
+    ctx.putImageData(imgData,0,0)
+    can.toBlob((blob)=>{
+      STATE.spritesheets[ch]=URL.createObjectURL(blob)
+      clbk()
+    })
+  })
+  img.src=`./assets/${fn}`
 }
