@@ -1,3 +1,4 @@
+import { write } from "./systems/font.js"
 import { STATE } from "./systems/variables.js"
 
 let can,ctx,dims
@@ -27,10 +28,51 @@ export function setupSfondo(d){
   }
 }
 
-
 export const getPixelAtCoords=(x,y)=>{
   x=Math.round(x)
   y=Math.round(y)
   if(x>=0 && x<dims[0] && y>=0 && y<dims[1]) return STATE.matrix[x+y*dims[0]]
   else return 0
+}
+
+
+
+
+
+
+let canUI,ctxUI
+
+export function setupUI(){
+  canUI=document.getElementById("ui")
+  canUI.width=dims[0]
+  canUI.height=dims[1]
+  ctxUI=canUI.getContext("2d")
+
+  STATE.terminal=false
+}
+
+export function updateUI(){
+  ctxUI.clearRect(0,0,canUI.width,canUI.height)
+  let m=40
+  ctxUI.fillStyle="#0f09"
+
+  if(STATE.terminal){
+    ctxUI.fillRect(m,m,canUI.width-2*m,canUI.height-2*m)
+    ctxUI.fillStyle="#fff"
+    write(ctxUI,[m+10,m+10],"mini font")
+    write(ctxUI,[m+10,m+20],"mini font")
+  }else{
+    //oxygen
+    ctxUI.fillRect(10,canUI.height-STATE.player.oxy-10,12,canUI.height-10)
+  }
+
+}
+
+export const showTerminal=(visible)=>{
+  STATE.terminal=visible
+  if(visible){
+    STATE.player.activate(false)
+  }else{
+    STATE.player.activate(true)
+  }
 }

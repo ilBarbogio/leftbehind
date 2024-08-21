@@ -1,9 +1,12 @@
-import { ENTITIES, STATE, inputToKeys, dist } from "./systems/variables.js"
-import { getPixelAtCoords } from "./canvas.js"
+import { ENTITIES, STATE, itkArr, dist } from "./systems/variables.js"
+import { getPixelAtCoords,showTerminal } from "./canvas.js"
 
-const applyBaseStyles=(el,pos)=>{
-  el.style=`position:absolute;left:${pos[0]}px;top:${pos[1]}px;overflow:"visible";`
-  document.getElementById("container").append(el)
+let rn=v=>Math.random()*v
+let rc=(c,s)=>c+(Math.random()-0.5)*s
+
+const applyBaseStyles=(e,p)=>{
+  e.style=`position:absolute;left:${p[0]}px;top:${p[1]}px;overflow:"visible";`
+  document.getElementById("container").append(e)
 }
 
 export class Entity{
@@ -16,6 +19,10 @@ export class Entity{
   }
   get position(){ return this._position}
 
+  set spriteTransform(v){
+    if(this.sprite) this.sprite.setAttribute("transform",v)
+  }
+
   constructor(id,x,y){
     this.id=id
     this._position=[x,y]
@@ -24,6 +31,7 @@ export class Entity{
     applyBaseStyles(this.anchor,this._position)
 
     ENTITIES.push(this)
+    
   }
   
 
@@ -31,6 +39,8 @@ export class Entity{
     this.spriteOffset=sOffset
     
     this.sprite=document.createElement("img-sprite")
+    this.sprite.id="sprite-"+this.id
+    this.sprite.className="sprite"
     this.anchor.append(this.sprite)
     this.sprite.animations=animations
     this.sprite.fps=fps
@@ -39,7 +49,7 @@ export class Entity{
     this.sprite.imgUrl=sheet
     this.sprite.tileDims=tileDims
     
-    this.sprite.pos=this.spriteOffset
+    this.sprite.pos=this.spriteOffset??[-.5*tileDims[0],-tileDims[1]]
     this.sprite.positionSprite()
   }
 
@@ -49,6 +59,11 @@ export class Player extends Entity{
   constructor(id,x,y){
     super(id,x,y)
     
+    this.active=true
+    this.oxy=STATE.maxOxy
+    this.cumulatedTime=0
+    this.oxyStep=50
+
     this.velocity=50
     this.lastDir="s"
     this.setupSprite(STATE.spritesheets.r,[13,16],[
@@ -72,27 +87,62 @@ export class Player extends Entity{
     ],"s-idle",8,[-7,-14])
   }
   
+  activate(value){
+    if(value){
+      this.active=true
+      this.anchor.style.opacity=1
+      this.oxy=STATE.maxOxy
+      this.cumulatedTime=0
+    }else{
+      this.active=false
+      this.anchor.style.opacity=0
+      this.lastDir="s"
+    }
+  }
 
   update(delta){
-    let currDir=inputToKeys.get(STATE.input)
-
-    let name
-    if(currDir==undefined){
-      name=`${this.lastDir}-idle`
-    }else{
-      this.lastDir=currDir
-      name=`${this.lastDir}-walk`
-      let vel=this.velocity*delta*.001
-      let [x,y]=this.position
-      if(this.lastDir.includes("n") && getPixelAtCoords(x,y-2)>0) y-=vel
-      else if(this.lastDir.includes("s") && getPixelAtCoords(x,y+2)>0) y+=vel
-      if(this.lastDir.includes("e") && getPixelAtCoords(x+2,y)>0) x+=vel
-      else if(this.lastDir.includes("w") && getPixelAtCoords(x-2,y)>0) x-=vel
-      if(getPixelAtCoords(x,y-1)>0) this.position=[x,y]
+    if(STATE.inputs[4]){//check for "fire" button with action conditions
+      let door=ENTITIES.find(el=>el.id=="D")
+      if(!this.active){
+        showTerminal(false)
+        STATE.inputs[4]=false
+        return
+      }
+      STATE.inputs[4]=false
+      if(door && this.position[1]>door.position[1] && dist(this.position,door.position)<10) showTerminal(true)
+      
     }
-    
-    this.sprite.currentAnimation=name
-    this.sprite.update(delta)
+
+    if(this.active){
+      //oxygen
+      this.cumulatedTime+=Math.max(delta,0)
+      if(this.cumulatedTime>=this.oxyStep){
+        this.oxy--
+        this.cumulatedTime=0
+      }
+
+      //movement
+      let currDir=itkArr[STATE.input]
+
+      let name
+      if(currDir==undefined){
+        name=`${this.lastDir}-idle`
+      }else{
+        this.lastDir=currDir
+        name=`${this.lastDir}-walk`
+        let vel=this.velocity*delta*.001
+        let [x,y]=this.position
+        if(this.lastDir.includes("n") && getPixelAtCoords(x,y-2)>0) y-=vel
+        else if(this.lastDir.includes("s") && getPixelAtCoords(x,y+2)>0) y+=vel
+        if(this.lastDir.includes("e") && getPixelAtCoords(x+2,y)>0) x+=vel
+        else if(this.lastDir.includes("w") && getPixelAtCoords(x-2,y)>0) x-=vel
+        if(getPixelAtCoords(x,y-1)>0) this.position=[x,y]
+      }
+      
+      this.sprite.currentAnimation=name
+      this.sprite.update(delta)
+      
+    }
   }
 }
 
@@ -119,10 +169,14 @@ export class Door extends Entity{
   }
 
   update(delta){
-    let player=ENTITIES.find(el=>el.id=="P")
+    let player=STATE.player
     let name=""
+    this.playerFound=false
     if(dist(player.position,this.position)<30){
-      if(this.sprite.currentAnimation=="closed" && player.position[1]>=this.position[1]) name="opening"
+      if(this.sprite.currentAnimation=="closed" && player.position[1]>=this.position[1]){
+        name="opening"
+        this.playerFound
+      }
     }else if(this.sprite.currentAnimation=="open") name="closed"
 
     if(name!="") this.sprite.currentAnimation=name
@@ -131,39 +185,99 @@ export class Door extends Entity{
   }
 }
 
-// export class Panel extends Entity{
-//   constructor(id,x,y){ 
-//     super(id,x,y)
-
-//     this.setupSprite(STATE.spritesheets.b,[32,32],
-//       [
-//         {name:"default",pos:[48,0],length:1,stay:true},
-//       ],
-//       "default",8,[-16,-32])
-//   }
-
-// }
 
 export class Rock extends Entity{
-  constructor(id,x,y){ 
+  constructor(id,x,y,a=0,rs=100){ 
     super(id,x,y)
 
-    this.setupSprite(STATE.spritesheets.g,[32,16],
-      [
-        {name:"default",pos:[0,0],length:1,stay:true},
-      ],
-      "default",8,[-16,-16])
+    this.angle=a
+    this.rotSpeed=rs
+
+    this.setupSprite(STATE.spritesheets.g,[32,16],[
+      {name:"still",pos:[0,0],length:1},
+    ],"still",10,[-16,-8])
+    this.spriteTransform=`1,${this.angle}`
   }
 
-  // update(delta){
-  //   let player=ENTITIES.find(el=>el.id=="P")
-  //   let name=""
-  //   if(dist(player.position,this.position)<30){
-  //     if(this.sprite.currentAnimation=="closed" && player.position[1]>=this.position[1]) name="opening"
-  //   }else if(this.sprite.currentAnimation=="open") name="closed"
+  update(d){
+    this.angle+=Math.floor(this.rotSpeed*d*.001)
+    this.spriteTransform=`1,${this.angle}`
+    this.sprite.update()
+  }
+}
 
-  //   if(name!="") this.sprite.currentAnimation=name
-  //   this.sprite.update(delta)
+export class Particle extends Entity{
+  constructor(x,y,n=6,s=1,r=0){
+    super("",x,y)
+    this.setupSprite(STATE.spritesheets.r,[8,8],[{name:"defex",pos:[120,0],length:n,destroy:true},],"defex",10,[-4,-4])
+    this.spriteTransform=`${s},${r}`
+  }
 
-  // }
+  update(d){
+    this.sprite.update(d)
+  }
+}
+
+
+export class Asteroid extends Entity{
+  constructor(id,x,y,h=100,v=[0,0]){ 
+    super("ast-"+id,x,y)
+    
+    this.v=v
+    this.gravity=2
+
+    this.h=h
+
+    this.angle=50
+    this.rotSpeed=100
+
+    this.rck=new Rock("",0,-h)//a,rs
+
+    
+    this.setupSprite(STATE.spritesheets.g,[32,8],[{name:"def",pos:[0,16],length:1},],"def",1,[-16,-4])
+    this.sprite.alpha=.75
+    this.anchor.append(this.rck.anchor)
+  }
+
+  update(d){
+    let [x,y]=this.position
+    if(dist([0,0],this.v)<10){
+      this.rck.position=[0,0]
+      this.v=[0,0]
+      this.rck.rotSpeed=0
+      return
+    }
+    this.position=[x+this.v[0]*d*.001,y]
+
+    this.v[1]+=this.gravity
+    if(this.v[1]>50) this.v[1]=50
+    this.h-=this.v[1]*d*.001
+    if(this.h<0){
+      this.h=0
+      this.v[1]*=-1
+      this.v[0]*=.5
+      this.rck.rotSpeed*=rc(this.v[0]<20?.25:1.75,.5)
+      createBurst(...this.position,8,32,2,180)
+    }
+    this.rck.position=[0,-this.h]
+  }
+}
+
+export let createAsteroid=(id,x,y,v,h=100)=>{
+  new Asteroid(id,x,y,v,h)
+
+}
+
+export let createPanel=(id,x,y,state="broken")=>{
+  let panel1=new Entity(id,x,y)
+  panel1.setupSprite(STATE.spritesheets.b,state=="broken"?[32,16]:[32,32],[
+    {name:"broken",pos:[48,0],length:1,stay:true},
+    {name:"complete",pos:[48,16],length:1,stay:true},
+  ],state,1)
+}
+
+export let createBurst=(x,y,N,sp,s,r)=>{
+  for(let i=0;i<N;i++){
+    new Particle(rc(x,sp),rc(y,sp*.5),6,rc(1,s),rn(r))
+  }
 }

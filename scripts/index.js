@@ -1,6 +1,6 @@
 import { setup as setupControls } from "./systems/controls.js"
-import { setupSfondo } from "./canvas.js"
-import { Entity, Base, Door, Player, Rock } from "./entities.js"
+import { setupSfondo, setupUI, updateUI } from "./canvas.js"
+import { Entity, Base, Door, Player, Rock, Particle, createPanel, createAsteroid } from "./entities.js"
 import { ENTITIES, STATE } from "./systems/variables.js"
 import { flatImageToChannel } from "../extutils/image.js"
 import { extractImages } from "./systems/variables.js"
@@ -19,33 +19,44 @@ function setup(){
     setupControls()
     setupBase()
     setupPlayer()
+    setupUI()
     start()
   })}
   let extGCbk=()=>{extractImages("bwG.png","g",extBCbk)}
   extractImages(filename,"r",extGCbk)
 }
 
-let player,base,door,clock
+
+let base,door,clock,expl
 function setupPlayer(){
-  player=new Player("P",140,120)
+  STATE.player=new Player("P",140,120)
+
+
+  // setInterval(()=>{
+  //   let x=295
+  //   let y=205
+  //   let s=20
+  //   let pos=[x+Math.random()*s,y+Math.random()*s]
+  //   let expl=new Particle(...pos,Math.floor(Math.random()*4+4),Math.random()+.75)
+  // },200)
 }
+
+
 
 function setupBase(){
   base=new Base("B",...STATE.basePos)
   door=new Door("D",STATE.basePos[0]+4,STATE.basePos[1])
 
-  let dish=new Entity("DSH",STATE.basePos[0],STATE.basePos[1])
+  let dish=new Entity("DSH",...STATE.basePos)
   dish.setupSprite(STATE.spritesheets.b,[16,16],[{name:"default",pos:[16,48],length:1,stay:true},],"default",8,[-24,-38])
-    
 
-  let panel1=new Entity("P1",120,100)
-  panel1.setupSprite(STATE.spritesheets.b,[32,32],[{name:"default",pos:[48,16],length:1,stay:true},],"default",8,[-16,-32])
 
-  let panel2=new Entity("P2",110,120)
-  panel2.setupSprite(STATE.spritesheets.b,[32,16],[{name:"default",pos:[48,0],length:1,stay:true},],"default",8,[-16,-16])
+
+  createPanel("P1",100,130)
+  createPanel("P2",70,90,"complete")
     
-  let rock1=new Rock("R1",150,170)
-  let rock2=new Rock("R2",250,130)
+  createAsteroid("A1",100,220,150,[80,0])
+  
 
 
 }
@@ -57,21 +68,22 @@ function start(){
 
 
 const loop=(time)=>{
-  let delta=time-clock
+  let delta=Math.max(time-clock,0)
   clock=time
 
-  player.update(delta)
-
-  door.update(delta)
+  updateUI()
 
   ENTITIES.sort((a,b)=>a.position[1]>=b.position[1]?1:-1)
-  for(let [i,e] of ENTITIES.entries()) e.zIndex=i 
+  for(let [i,e] of ENTITIES.entries()){
+    if(e.update) e.update(delta)
+    e.zIndex=i+10
+  }
+
 
   requestAnimationFrame(loop)
 }
 
+
 setupSfondo(STATE.backgroundSize)
 
 setup()
-
-// flatImageToChannel("bw.png","r")

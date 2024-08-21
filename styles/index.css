@@ -14,12 +14,13 @@ body{
 
 #container{
   position: relative;
-  width:256px;
-  height:128px;
+  transform:translate(-200px, -100px)
 }
 
 canvas{
   position:absolute;
-  /* background-color: darkred; */
   image-rendering: pixelated;
+}
+#ui{
+  z-index:9999;
 }
