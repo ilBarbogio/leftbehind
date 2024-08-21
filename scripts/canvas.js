@@ -10,7 +10,6 @@ export function setupSfondo(d){
   can.height=dims[1]
   ctx=can.getContext("2d")
 
-
   ctx.fillStyle="#fff"
   ctx.beginPath()
   ctx.ellipse(...dims.map(el=>el*.5),...dims.map(el=>el*.5),0, 0,Math.PI*2)
@@ -26,6 +25,12 @@ export function setupSfondo(d){
   for(let i=0;i<STATE.matrix.length;i++){
     STATE.matrix[i]=data[i*4]
   }
+
+
+  ctx.fillStyle="#aaa"
+  ctx.beginPath()
+  ctx.ellipse(...dims.map(el=>el*.5),...dims.map(el=>el*.5),0, 0,Math.PI*2)
+  ctx.fill()
 }
 
 export const getPixelAtCoords=(x,y)=>{
@@ -59,8 +64,8 @@ export function updateUI(){
   if(STATE.terminal){
     ctxUI.fillRect(m,m,canUI.width-2*m,canUI.height-2*m)
     ctxUI.fillStyle="#fff"
-    write(ctxUI,[m+10,m+10],"mini font")
-    write(ctxUI,[m+10,m+20],"mini font")
+    write(ctxUI,[m+10,m+10],"terminal 001...  online")
+    write(ctxUI,[m+10,m+22]," - awaiting orders")
   }else{
     //oxygen
     ctxUI.fillRect(10,canUI.height-STATE.player.oxy-10,12,canUI.height-10)
